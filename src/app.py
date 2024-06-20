@@ -1,9 +1,13 @@
 #!/usr/bin/env python3
 import os
 import boto3
+import logging
 from flask import Flask, request, jsonify
 
 app = Flask(__name__)
+
+# Configure logging
+logging.basicConfig(level=logging.DEBUG)
 
 # Configure AWS SQS
 sqs_client = boto3.client(
@@ -74,6 +78,7 @@ def echo_input():
     input_text = request.form.get("user_input", "")
 
     # Send message to SQS
+    logging.debug(f"Sending message to SQS: {input_text}")
     response = sqs_client.send_message(
         QueueUrl=queue_url,
         MessageBody=input_text
@@ -81,8 +86,10 @@ def echo_input():
 
     if response['ResponseMetadata']['HTTPStatusCode'] == 200:
         message = "Message sent to SQS successfully."
+        logging.debug("Message sent to SQS successfully.")
     else:
         message = "Failed to send message to SQS."
+        logging.error("Failed to send message to SQS.")
 
     return f'''
     <html>
@@ -133,6 +140,7 @@ def echo_input():
 
 @app.route("/get_advice", methods=["GET"])
 def get_advice():
+    logging.debug("Polling SQS for messages.")
     # Fetch the latest message from SQS queue
     response = sqs_client.receive_message(
         QueueUrl=queue_url,
@@ -143,6 +151,7 @@ def get_advice():
     if 'Messages' in response:
         message = response['Messages'][0]
         advice = message['Body']
+        logging.debug(f"Received advice: {advice}")
         # Delete received message from queue
         sqs_client.delete_message(
             QueueUrl=queue_url,
@@ -150,6 +159,7 @@ def get_advice():
         )
         return jsonify({'message': advice})
     else:
+        logging.debug("No messages found in SQS.")
         return jsonify({'message': 'No advice available at the moment'}), 404
 
 # Add this new route to receive advice from the Spring Boot application
@@ -158,10 +168,13 @@ def receive_advice():
     try:
         advice = request.json.get("advice")
         if advice:
+            logging.debug(f"Received advice: {advice}")
             return jsonify({'message': advice})
         else:
+            logging.error("No advice provided in the request")
             return jsonify({'message': 'No advice provided'}), 400
     except Exception as e:
+        logging.error(f"Error in receive_advice: {str(e)}")
         return jsonify({'error': str(e)}), 500
 
 
