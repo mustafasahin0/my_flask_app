@@ -1,8 +1,20 @@
 #!/usr/bin/env python3
+import os
+import boto3
 import requests
 from flask import Flask, request
 
 app = Flask(__name__)
+
+# Configure AWS SQS
+sqs_client = boto3.client(
+    'sqs',
+    aws_access_key_id=os.environ.get('AWS_ACCESS_KEY_ID'),
+    aws_secret_access_key=os.environ.get('AWS_SECRET_ACCESS_KEY'),
+    region_name=os.environ.get('AWS_REGION')
+)
+queue_url = 'https://sqs.us-east-2.amazonaws.com/975050009455/advice-queue'
+
 
 @app.route("/")
 def main():
@@ -57,18 +69,21 @@ def main():
     </html>
     '''
 
+
 @app.route("/echo_user_input", methods=["POST"])
 def echo_input():
     input_text = request.form.get("user_input", "")
-    response = requests.get("http://18.191.152.43:8080/api/v1/advice/random")
 
-    if response.status_code == 200:
-        advice_data = response.json()
-        advice = advice_data.get("data", {}).get("quote", "No advice available.")
-        author = advice_data.get("data", {}).get("author", "Unknown")
+    # Send message to SQS
+    response = sqs_client.send_message(
+        QueueUrl=queue_url,
+        MessageBody=input_text
+    )
+
+    if response['ResponseMetadata']['HTTPStatusCode'] == 200:
+        message = "Message sent to SQS successfully."
     else:
-        advice = "Failed to retrieve advice."
-        author = ""
+        message = "Failed to send message to SQS."
 
     return f'''
     <html>
@@ -96,13 +111,13 @@ def echo_input():
         <body>
             <div class="container">
                 <h1>Hi {input_text},</h1>
-                <p>Your advice for today is:</p>
-                <blockquote>"{advice}" - {author}</blockquote>
+                <p>{message}</p>
                 <a href="/">Get another advice</a>
             </div>
         </body>
     </html>
     '''
 
+
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5000)
+    app.run(host="0.0.0.0", port=5111)

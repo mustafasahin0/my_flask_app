@@ -12,3 +12,5 @@ packaging==24.0
 requests==2.32.1
 urllib3==2.2.1
 Werkzeug==3.0.3
+boto3==1.26.145
+urllib3==2.2.1
