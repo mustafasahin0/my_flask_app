@@ -2,7 +2,7 @@
 import os
 import boto3
 import requests
-from flask import Flask, request
+from flask import Flask, request, jsonify
 
 app = Flask(__name__)
 
@@ -112,11 +112,46 @@ def echo_input():
             <div class="container">
                 <h1>Hi {input_text},</h1>
                 <p>{message}</p>
-                <a href="/">Get another advice</a>
+                <p>Waiting for advice...</p>
+                <script>
+                    setTimeout(function() {{
+                        fetch('/get_advice')
+                            .then(response => response.json())
+                            .then(data => {{
+                                document.querySelector('.container').innerHTML = `
+                                    <h1>Hi {input_text},</h1>
+                                    <p>${{data.message}}</p>
+                                    <a href="/">Get another advice</a>
+                                `;
+                            }});
+                    }}, 5000);  // Wait 5 seconds before fetching advice
+                </script>
             </div>
         </body>
     </html>
     '''
+
+
+@app.route("/get_advice", methods=["GET"])
+def get_advice():
+    # Fetch the latest message from SQS queue
+    response = sqs_client.receive_message(
+        QueueUrl=queue_url,
+        MaxNumberOfMessages=1,
+        WaitTimeSeconds=10  # Long polling for 10 seconds
+    )
+
+    if 'Messages' in response:
+        message = response['Messages'][0]
+        advice = message['Body']
+        # Delete received message from queue
+        sqs_client.delete_message(
+            QueueUrl=queue_url,
+            ReceiptHandle=message['ReceiptHandle']
+        )
+        return jsonify({'message': advice})
+    else:
+        return jsonify({'message': 'No advice available at the moment'}), 404
 
 
 if __name__ == "__main__":
