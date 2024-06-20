@@ -153,6 +153,12 @@ def get_advice():
     else:
         return jsonify({'message': 'No advice available at the moment'}), 404
 
+# Add this new route to receive advice from the Spring Boot application
+@app.route("/receive_advice", methods=["POST"])
+def receive_advice():
+    advice = request.json.get("advice")
+    return jsonify({'message': advice})
+
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5111)
