@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 import os
 import boto3
-import requests
 from flask import Flask, request, jsonify
 
 app = Flask(__name__)
@@ -156,8 +155,14 @@ def get_advice():
 # Add this new route to receive advice from the Spring Boot application
 @app.route("/receive_advice", methods=["POST"])
 def receive_advice():
-    advice = request.json.get("advice")
-    return jsonify({'message': advice})
+    try:
+        advice = request.json.get("advice")
+        if advice:
+            return jsonify({'message': advice})
+        else:
+            return jsonify({'message': 'No advice provided'}), 400
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
 
 
 if __name__ == "__main__":
