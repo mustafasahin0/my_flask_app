@@ -4,7 +4,6 @@ from flask import Flask, request
 
 app = Flask(__name__)
 
-
 @app.route("/")
 def main():
     return '''
@@ -58,17 +57,18 @@ def main():
     </html>
     '''
 
-
 @app.route("/echo_user_input", methods=["POST"])
 def echo_input():
     input_text = request.form.get("user_input", "")
-    response = requests.get("https://api.adviceslip.com/advice")
+    response = requests.get("http://18.191.152.43:8080/api/v1/advice/random")
 
     if response.status_code == 200:
         advice_data = response.json()
-        advice = advice_data.get("slip", {}).get("advice", "No advice available.")
+        advice = advice_data.get("data", {}).get("quote", "No advice available.")
+        author = advice_data.get("data", {}).get("author", "Unknown")
     else:
         advice = "Failed to retrieve advice."
+        author = ""
 
     return f'''
     <html>
@@ -97,9 +97,12 @@ def echo_input():
             <div class="container">
                 <h1>Hi {input_text},</h1>
                 <p>Your advice for today is:</p>
-                <blockquote>{advice}</blockquote>
+                <blockquote>"{advice}" - {author}</blockquote>
                 <a href="/">Get another advice</a>
             </div>
         </body>
     </html>
     '''
+
+if __name__ == "__main__":
+    app.run(host="0.0.0.0", port=5000)
