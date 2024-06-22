@@ -16,7 +16,8 @@ sqs_client = boto3.client(
     aws_secret_access_key=os.environ.get('AWS_SECRET_ACCESS_KEY'),
     region_name=os.environ.get('AWS_REGION')
 )
-queue_url = 'https://sqs.us-east-2.amazonaws.com/975050009455/advice-queue'
+request_queue_url = 'https://sqs.us-east-2.amazonaws.com/975050009455/advice-request'
+response_queue_url = 'https://sqs.us-east-2.amazonaws.com/975050009455/advice-response'
 
 
 @app.route("/")
@@ -77,19 +78,19 @@ def main():
 def echo_input():
     input_text = request.form.get("user_input", "")
 
-    # Send message to SQS
-    logging.debug(f"Sending message to SQS: {input_text}")
+    # Send message to SQS request queue
+    logging.debug(f"Sending message to SQS request queue: {input_text}")
     response = sqs_client.send_message(
-        QueueUrl=queue_url,
+        QueueUrl=request_queue_url,
         MessageBody=input_text
     )
 
     if response['ResponseMetadata']['HTTPStatusCode'] == 200:
         message = "Message sent to SQS successfully."
-        logging.debug("Message sent to SQS successfully.")
+        logging.debug("Message sent to SQS request queue successfully.")
     else:
         message = "Failed to send message to SQS."
-        logging.error("Failed to send message to SQS.")
+        logging.error("Failed to send message to SQS request queue.")
 
     return f'''
     <html>
@@ -141,9 +142,9 @@ def echo_input():
 @app.route("/get_advice", methods=["GET"])
 def get_advice():
     logging.debug("Polling SQS for messages.")
-    # Fetch the latest message from SQS queue
+    # Fetch the latest message from SQS response queue
     response = sqs_client.receive_message(
-        QueueUrl=queue_url,
+        QueueUrl=response_queue_url,
         MaxNumberOfMessages=1,
         WaitTimeSeconds=10  # Long polling for 10 seconds
     )
@@ -154,7 +155,7 @@ def get_advice():
         logging.debug(f"Received advice: {advice}")
         # Delete received message from queue
         sqs_client.delete_message(
-            QueueUrl=queue_url,
+            QueueUrl=response_queue_url,
             ReceiptHandle=message['ReceiptHandle']
         )
         return jsonify({'message': advice})
