@@ -2,9 +2,10 @@
 import os
 import boto3
 import logging
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, render_template_string
 import sqlite3
 from datetime import datetime
+import requests
 
 app = Flask(__name__)
 
@@ -191,11 +192,26 @@ def submit_feedback():
     feedback = request.form.get("feedback")
     timestamp = datetime.now()
 
+    # Save feedback to the local database
     c.execute('''
         INSERT INTO user_interactions (name, advice, timestamp, feedback)
         VALUES (?, ?, ?, ?)
     ''', (name, advice, timestamp, feedback))
     conn.commit()
+
+    # Send feedback to Spring Boot application
+    feedback_data = {
+        'name': name,
+        'advice': advice,
+        'feedback': feedback,
+        'timestamp': timestamp.isoformat()
+    }
+
+    spring_boot_url = 'http://18.218.240.175:8080/api/v1/feedback'
+    try:
+        requests.post(spring_boot_url, json=feedback_data)
+    except Exception as e:
+        logging.error(f"Failed to send feedback to Spring Boot application: {str(e)}")
 
     return f'''
     <html>
