@@ -3,6 +3,8 @@ import os
 import boto3
 import logging
 from flask import Flask, request, jsonify
+import sqlite3
+from datetime import datetime
 
 app = Flask(__name__)
 
@@ -19,6 +21,19 @@ sqs_client = boto3.client(
 request_queue_url = 'https://sqs.us-east-2.amazonaws.com/975050009455/advice-request'
 response_queue_url = 'https://sqs.us-east-2.amazonaws.com/975050009455/advice-response'
 
+# Database configuration (e.g., SQLite for simplicity)
+conn = sqlite3.connect('user_data.db', check_same_thread=False)
+c = conn.cursor()
+c.execute('''
+    CREATE TABLE IF NOT EXISTS user_interactions (
+        id INTEGER PRIMARY KEY,
+        name TEXT,
+        advice TEXT,
+        timestamp DATETIME,
+        feedback TEXT
+    )
+''')
+conn.commit()
 
 @app.route("/")
 def main():
@@ -72,7 +87,6 @@ def main():
         </body>
     </html>
     '''
-
 
 @app.route("/echo_user_input", methods=["POST"])
 def echo_input():
@@ -128,6 +142,14 @@ def echo_input():
                                 document.querySelector('.container').innerHTML = `
                                     <h1>Hi {input_text},</h1>
                                     <p>${{data.message}}</p>
+                                    <form action="/submit_feedback" method="POST">
+                                        <input type="hidden" name="name" value="{input_text}">
+                                        <input type="hidden" name="advice" value="${{data.message}}">
+                                        <label for="feedback">How did this advice make you feel?</label><br>
+                                        <button type="submit" name="feedback" value="happy">Happy</button>
+                                        <button type="submit" name="feedback" value="neutral">Neutral</button>
+                                        <button type="submit" name="feedback" value="sad">Sad</button>
+                                    </form>
                                     <a href="/">Get another advice</a>
                                 `;
                             }});
@@ -137,7 +159,6 @@ def echo_input():
         </body>
     </html>
     '''
-
 
 @app.route("/get_advice", methods=["GET"])
 def get_advice():
@@ -163,21 +184,51 @@ def get_advice():
         logging.debug("No messages found in SQS.")
         return jsonify({'message': 'No advice available at the moment'}), 404
 
-# Add this new route to receive advice from the Spring Boot application
-@app.route("/receive_advice", methods=["POST"])
-def receive_advice():
-    try:
-        advice = request.json.get("advice")
-        if advice:
-            logging.debug(f"Received advice: {advice}")
-            return jsonify({'message': advice})
-        else:
-            logging.error("No advice provided in the request")
-            return jsonify({'message': 'No advice provided'}), 400
-    except Exception as e:
-        logging.error(f"Error in receive_advice: {str(e)}")
-        return jsonify({'error': str(e)}), 500
+@app.route("/submit_feedback", methods=["POST"])
+def submit_feedback():
+    name = request.form.get("name")
+    advice = request.form.get("advice")
+    feedback = request.form.get("feedback")
+    timestamp = datetime.now()
 
+    c.execute('''
+        INSERT INTO user_interactions (name, advice, timestamp, feedback)
+        VALUES (?, ?, ?, ?)
+    ''', (name, advice, timestamp, feedback))
+    conn.commit()
+
+    return f'''
+    <html>
+        <head>
+            <title>Thank You!</title>
+            <style>
+                body {{
+                    font-family: Arial, sans-serif;
+                    background-color: #f0f0f0;
+                    display: flex;
+                    justify-content: center;
+                    align-items: center;
+                    height: 100vh;
+                    margin: 0;
+                }}
+                .container {{
+                    background-color: #fff;
+                    padding: 20px;
+                    border-radius: 10px;
+                    box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+                    text-align: center;
+                }}
+            </style>
+        </head>
+        <body>
+            <div class="container">
+                <h1>Thank you for your feedback!</h1>
+                <p>We appreciate your input.</p>
+                <a href="/">Get another advice</a>
+            </div>
+        </body>
+    </html>
+    '''
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5111)
