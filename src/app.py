@@ -22,7 +22,7 @@ request_queue_url = 'https://sqs.us-east-2.amazonaws.com/975050009455/advice-req
 response_queue_url = 'https://sqs.us-east-2.amazonaws.com/975050009455/advice-response'
 
 # Spring Boot endpoint for fetching feedback
-spring_boot_feedback_url = '3.139.92.152:8080/api/v1/feedback'
+spring_boot_feedback_url = 'http://3.139.92.152:8080/api/v1/feedback'
 
 @app.route("/")
 def main():
@@ -188,7 +188,7 @@ def submit_feedback():
         'timestamp': timestamp.isoformat()
     }
 
-    spring_boot_url = '3.139.92.152:8080/api/v1/feedback'
+    spring_boot_url = 'http://3.139.92.152:8080/api/v1/feedback'
     try:
         requests.post(spring_boot_url, json=feedback_data)
     except Exception as e:
