@@ -207,7 +207,7 @@ def submit_feedback():
         'timestamp': timestamp.isoformat()
     }
 
-    spring_boot_url = 'http://18.218.240.175:8080/api/v1/feedback'
+    spring_boot_url = '18.191.200.18:8080/api/v1/feedback'
     try:
         requests.post(spring_boot_url, json=feedback_data)
     except Exception as e:
