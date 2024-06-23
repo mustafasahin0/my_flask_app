@@ -3,8 +3,6 @@ import os
 import boto3
 import logging
 from flask import Flask, request, jsonify, render_template_string
-import sqlite3
-from datetime import datetime
 import requests
 
 app = Flask(__name__)
@@ -22,19 +20,8 @@ sqs_client = boto3.client(
 request_queue_url = 'https://sqs.us-east-2.amazonaws.com/975050009455/advice-request'
 response_queue_url = 'https://sqs.us-east-2.amazonaws.com/975050009455/advice-response'
 
-# Database configuration (e.g., SQLite for simplicity)
-conn = sqlite3.connect('user_data.db', check_same_thread=False)
-c = conn.cursor()
-c.execute('''
-    CREATE TABLE IF NOT EXISTS user_interactions (
-        id INTEGER PRIMARY KEY,
-        name TEXT,
-        advice TEXT,
-        timestamp DATETIME,
-        feedback TEXT
-    )
-''')
-conn.commit()
+# Spring Boot endpoint for fetching feedback
+spring_boot_feedback_url = '3.139.92.152:8080/api/v1/feedback'
 
 @app.route("/")
 def main():
@@ -192,13 +179,6 @@ def submit_feedback():
     feedback = request.form.get("feedback")
     timestamp = datetime.now()
 
-    # Save feedback to the local database
-    c.execute('''
-        INSERT INTO user_interactions (name, advice, timestamp, feedback)
-        VALUES (?, ?, ?, ?)
-    ''', (name, advice, timestamp, feedback))
-    conn.commit()
-
     # Send feedback to Spring Boot application
     feedback_data = {
         'name': name,
@@ -207,7 +187,7 @@ def submit_feedback():
         'timestamp': timestamp.isoformat()
     }
 
-    spring_boot_url = '18.191.200.18:8080/api/v1/feedback'
+    spring_boot_url = '3.139.92.152:8080/api/v1/feedback'
     try:
         requests.post(spring_boot_url, json=feedback_data)
     except Exception as e:
@@ -245,6 +225,58 @@ def submit_feedback():
         </body>
     </html>
     '''
+
+@app.route("/feedback_analytics", methods=["GET"])
+def feedback_analytics():
+    # Fetch feedback from Spring Boot application
+    try:
+        response = requests.get(spring_boot_feedback_url)
+        response.raise_for_status()
+        feedback_data = response.json()
+    except requests.exceptions.RequestException as e:
+        logging.error(f"Failed to fetch feedback from Spring Boot application: {str(e)}")
+        feedback_data = []
+
+    # Basic analytics
+    total_feedback = len(feedback_data)
+    happy_count = sum(1 for feedback in feedback_data if feedback['feedback'] == 'happy')
+    neutral_count = sum(1 for feedback in feedback_data if feedback['feedback'] == 'neutral')
+    sad_count = sum(1 for feedback in feedback_data if feedback['feedback'] == 'sad')
+
+    return render_template_string('''
+    <html>
+        <head>
+            <title>Feedback Analytics</title>
+            <style>
+                body {
+                    font-family: Arial, sans-serif;
+                    background-color: #f0f0f0;
+                    display: flex;
+                    justify-content: center;
+                    align-items: center;
+                    height: 100vh;
+                    margin: 0;
+                }
+                .container {
+                    background-color: #fff;
+                    padding: 20px;
+                    border-radius: 10px;
+                    box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+                    text-align: center;
+                }
+            </style>
+        </head>
+        <body>
+            <div class="container">
+                <h1>Feedback Analytics</h1>
+                <p>Total feedbacks received: {{ total_feedback }}</p>
+                <p>Happy feedbacks: {{ happy_count }}</p>
+                <p>Neutral feedbacks: {{ neutral_count }}</p>
+                <p>Sad feedbacks: {{ sad_count }}</p>
+            </div>
+        </body>
+    </html>
+    ''', total_feedback=total_feedback, happy_count=happy_count, neutral_count=neutral_count, sad_count=sad_count)
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5111)
