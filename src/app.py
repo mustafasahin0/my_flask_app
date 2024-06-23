@@ -47,19 +47,19 @@ def main():
                     box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
                     text-align: center;
                 }
-                .container input[type="text"], .container input[type="submit"] {
+                .container input[type="text"], .container input[type="submit"], .container button {
                     padding: 10px;
                     margin: 10px 0;
                     border: 1px solid #ccc;
                     border-radius: 5px;
                 }
-                .container input[type="submit"] {
+                .container input[type="submit"], .container button {
                     background-color: #007BFF;
                     color: white;
                     border: none;
                     cursor: pointer;
                 }
-                .container input[type="submit"]:hover {
+                .container input[type="submit"]:hover, .container button:hover {
                     background-color: #0056b3;
                 }
             </style>
@@ -72,6 +72,8 @@ def main():
                     <input id="user_input" name="user_input" type="text" placeholder="Your Name"><br>
                     <input type="submit" value="Submit!">
                 </form>
+                <br>
+                <button onclick="location.href='/feedback_analytics'">View Feedback Analytics</button>
             </div>
         </body>
     </html>
@@ -139,6 +141,9 @@ def echo_input():
                                         <button type="submit" name="feedback" value="neutral">Neutral</button>
                                         <button type="submit" name="feedback" value="sad">Sad</button>
                                     </form>
+                                    <br>
+                                    <button onclick="location.href='/feedback_analytics'">View Feedback Analytics</button>
+                                    <br>
                                     <a href="/">Get another advice</a>
                                 `;
                             }});
@@ -222,6 +227,8 @@ def submit_feedback():
                 <h1>Thank you for your feedback!</h1>
                 <p>We appreciate your input.</p>
                 <a href="/">Get another advice</a>
+                <br>
+                <button onclick="location.href='/feedback_analytics'">View Feedback Analytics</button>
             </div>
         </body>
     </html>
@@ -274,6 +281,8 @@ def feedback_analytics():
                 <p>Happy feedbacks: {{ happy_count }}</p>
                 <p>Neutral feedbacks: {{ neutral_count }}</p>
                 <p>Sad feedbacks: {{ sad_count }}</p>
+                <br>
+                <a href="/">Back to Home</a>
             </div>
         </body>
     </html>
